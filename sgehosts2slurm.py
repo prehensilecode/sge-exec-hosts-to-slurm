@@ -122,10 +122,16 @@ def get_host_resources(hostname):
         ev_dict = {}
         for ev in expanded_values:
             key, val = ev.split('=')
+
             if val == 'TRUE':
                 val = True
             elif val == 'FALSE':
                 val = False
+
+            int_vals = ('m_socket', 'm_core', 'm_thread', 'num_proc')
+            if key in int_vals:
+                val = int(val)
+
             ev_dict[key] = val
 
         host_resources[hostname] = {k: ev_dict}

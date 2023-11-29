@@ -4,7 +4,7 @@ import os
 import subprocess
 import re
 
-_DEBUG = True
+_DEBUG = False
 _QCONF = '/cbica/software/external/sge/8.1.9-1/bin/lx-amd64/qconf'
 
 
@@ -74,7 +74,7 @@ def get_host_resources(hostname):
     qconf_output = subprocess.run([_QCONF, '-se', hostname], capture_output=True, text=True)
     host_resources = {}
     host_resources[hostname] = {}
-    foobar = {}
+    values_dict = {}
     line_list = []
     key = None
     value_str = ''
@@ -112,8 +112,23 @@ def get_host_resources(hostname):
             elif len(line_list) == 0:
                 continue
 
-            foobar[key] = value_str
-        host_resources[hostname] = foobar
+            values_dict[key] = value_str
+
+    for k, v in values_dict.items():
+        if _DEBUG:
+            print(f'DEBUG: k = {k}, v = {v}')
+
+        expanded_values = v.split(',')
+        ev_dict = {}
+        for ev in expanded_values:
+            key, val = ev.split('=')
+            if val == 'TRUE':
+                val = True
+            elif val == 'FALSE':
+                val = False
+            ev_dict[key] = val
+
+        host_resources[hostname] = {k: ev_dict}
 
     print(host_resources)
 

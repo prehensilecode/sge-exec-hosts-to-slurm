@@ -92,13 +92,17 @@ def get_host_resources(hostname):
         else:
             # first line of block
             line_list = line.strip().split()
+
+            # drop trailing backslash
+            if '\\' in line_list:
+                line_list.remove('\\')
+
             if _DEBUG:
                 print(f'DEBUG: line_list = {line_list}')
 
-            if len(line_list) > 2:
+            if len(line_list) == 2:
                 key = line_list[0]
-                # drop trailing backslash
-                value_str = line_list[1][:-1]
+                value_str = line_list[1]
                 if _DEBUG:
                     print(f'DEBUG: value_str = {value_str}')
             elif len(line_list) > 0:

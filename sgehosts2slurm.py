@@ -4,15 +4,39 @@ import os
 import subprocess
 import re
 
-_DEBUG = False
+_DEBUG = True
 _QCONF = '/cbica/software/external/sge/8.1.9-1/bin/lx-amd64/qconf'
+
+# N.B. SGE shows total number of threads, while Slurm expects 
+#      no. of threads per core
+
+def to_MiB(memstr):
+    # takes a mem value string from qconf, e.g. 342590.007812M or
+    # 599783284k and convert to floating point MiB
+    kibi = 1./1024.
+    gibi = 1024
+    tebi = gibi * gibi
+    retval = 0.
+
+    if memstr[-1] == 'k':
+        retval = float(memstr[:-1]) * kibi
+    elif memstr[-1] == 'M':
+        retval = float(memstr[:-1])
+    elif memstr[-1] == 'G':
+        retval = float(memstr[:-1]) * gibi
+    elif memstr[-1] == 'T':
+        retval = float(memstr[:-1]) * tebi
+    else:
+        retval = 0.
+
+    return retval
 
 
 def get_hosts():
     qconf_output = subprocess.run([_QCONF, '-sel'], capture_output=True, text=True)
     allhosts = qconf_output.stdout.split()
 
-    # non-compute hosts
+    # non-compute hosts - to be removed from list allhosts
     #   cubic-login1.bicic.local
     #   cubic-login2.uphs.upenn.edu
     #   cubic-login3.bicic.local
@@ -29,7 +53,14 @@ def get_hosts():
     for r in to_remove:
         allhosts.remove(r)
 
+    if _DEBUG:
+        print(f'DEBUG: allhosts = {allhosts}')
+
     return allhosts
+
+
+def sge_to_slurm_resources(all_host_resources):
+    pass
 
 
 def get_host_resources(hostname):
@@ -70,6 +101,9 @@ def get_host_resources(hostname):
     # And example slurm.conf lines
     # NodeName=2115ga[001-004]  Sockets=2 CoresPerSocket=32 ThreadsPerCore=2 RealMemory=1000000 TmpDisk=3291000 Gres=gpu:A100:2
     # NodeName=compute-fed1     Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=773000 TmpDisk=780000 Features=SGX,AVX,AVX2
+
+    if _DEBUG:
+        print(f'DEBUG: hostname = {hostname}')
 
     qconf_output = subprocess.run([_QCONF, '-se', hostname], capture_output=True, text=True)
     host_resources = {}
@@ -118,25 +152,54 @@ def get_host_resources(hostname):
         if _DEBUG:
             print(f'DEBUG: k = {k}, v = {v}')
 
+        # We ignore load values, and values which do not go
+        # into the node definition of slurm.conf
         expanded_values = v.split(',')
+
+        if _DEBUG:
+            print(f'DEBUG: expanded_values = {expanded_values}')
+
         ev_dict = {}
+        res_of_interest = ('A40', 'A100', 'P100', 'gpu', 'avx', 'avx2', 'SGX',
+                           'm_socket', 'm_core', 'm_thread', 'mem_total',
+                           'tmptot')
         for ev in expanded_values:
             key, val = ev.split('=')
 
-            if val == 'TRUE':
-                val = True
-            elif val == 'FALSE':
-                val = False
+            if _DEBUG:
+                print(f'DEBUG: key = {key}, val = {val}')
 
-            int_vals = ('m_socket', 'm_core', 'm_thread', 'num_proc')
-            if key in int_vals:
-                val = int(val)
+            if key in res_of_interest:
+                bool_vals = ('A40', 'A100', 'P100', 'V100', 'avx', 'avx2', 'SGX')
+                if key in bool_vals:
+                    if val == 'TRUE':
+                        print('FOOBAR')
+                        val = True
+                    elif val == 'FALSE':
+                        print('BARFOO')
+                        val = False
 
-            ev_dict[key] = val
+                int_vals = ('gpu', 'm_socket', 'm_core', 'm_thread')
+                if key in int_vals:
+                    val = int(val)
 
-        host_resources[hostname] = {k: ev_dict}
+                # memory and disk space in units of MiB
+                mem_vals = ('mem_total', 'tmptot')
+                if key in mem_vals:
+                    val = to_MiB(val)
 
-    print(host_resources)
+                ev_dict[key] = val
+
+        if _DEBUG:
+            print(f'DEBUG: ev_dict = {ev_dict}')
+
+        host_resources[hostname] |= ev_dict
+
+        if _DEBUG:
+            print('')
+
+    return host_resources
+
 
 def main():
     allhosts = get_hosts()
@@ -144,8 +207,13 @@ def main():
     if _DEBUG:
         print(allhosts)
 
-    for h in allhosts[:3]:
-        get_host_resources(h)
+    host_resources = {}
+    for h in allhosts:
+        host_resources |= get_host_resources(h)
+
+    for host, resources in host_resources.items():
+        print(f'host = {host};  resources = {resources}')
+
 
 
 if __name__ == '__main__':

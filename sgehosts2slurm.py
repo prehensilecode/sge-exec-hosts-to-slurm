@@ -282,8 +282,9 @@ def main():
     for h in allhosts:
         host_resources |= get_host_resources(h)
 
-    for host, resources in host_resources.items():
-        print(f'host = {host};  resources = {resources}')
+    if _DEBUG:
+        for host, resources in host_resources.items():
+            print(f'host = {host};  resources = {resources}')
 
     nodelines = convert_to_slurm_node_conf(host_resources)
 

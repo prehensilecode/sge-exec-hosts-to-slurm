@@ -160,7 +160,8 @@ def get_host_resources(hostname):
             print(f'DEBUG: expanded_values = {expanded_values}')
 
         ev_dict = {}
-        res_of_interest = ('A40', 'A100', 'P100', 'gpu', 'avx', 'avx2', 'SGX',
+        res_of_interest = ('A40', 'A100', 'P100', 'V100', 'gpu',
+                           'avx', 'avx2', 'SGX',
                            'm_socket', 'm_core', 'm_thread', 'mem_total',
                            'tmptot')
         for ev in expanded_values:
@@ -175,9 +176,6 @@ def get_host_resources(hostname):
                     if val == 'TRUE':
                         print('FOOBAR')
                         val = True
-                    elif val == 'FALSE':
-                        print('BARFOO')
-                        val = False
 
                 int_vals = ('gpu', 'm_socket', 'm_core', 'm_thread')
                 if key in int_vals:

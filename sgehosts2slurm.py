@@ -4,7 +4,7 @@ import os
 import subprocess
 import re
 
-_DEBUG = True
+_DEBUG = False
 _QCONF = '/cbica/software/external/sge/8.1.9-1/bin/lx-amd64/qconf'
 
 # N.B. SGE shows total number of threads, while Slurm expects 
@@ -174,8 +174,9 @@ def get_host_resources(hostname):
                 bool_vals = ('A40', 'A100', 'P100', 'V100', 'avx', 'avx2', 'SGX')
                 if key in bool_vals:
                     if val == 'TRUE':
-                        print('FOOBAR')
                         val = True
+                    elif val == 'FALSE':
+                        val = False
 
                 int_vals = ('gpu', 'm_socket', 'm_core', 'm_thread')
                 if key in int_vals:
@@ -186,7 +187,8 @@ def get_host_resources(hostname):
                 if key in mem_vals:
                     val = to_MiB(val)
 
-                ev_dict[key] = val
+                if val:
+                    ev_dict[key] = val
 
         if _DEBUG:
             print(f'DEBUG: ev_dict = {ev_dict}')

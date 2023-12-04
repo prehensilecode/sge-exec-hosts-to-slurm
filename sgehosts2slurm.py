@@ -170,6 +170,7 @@ def get_host_resources(hostname):
             if _DEBUG:
                 print(f'DEBUG: key = {key}, val = {val}')
 
+            # slurm stuff is all case-insensitive and always reported lowercase
             if key in res_of_interest:
                 bool_vals = ('A40', 'A100', 'P100', 'V100', 'avx', 'avx2', 'SGX')
                 if key in bool_vals:
@@ -188,7 +189,7 @@ def get_host_resources(hostname):
                     val = to_MiB(val)
 
                 if val:
-                    ev_dict[key] = val
+                    ev_dict[key.lower()] = val
 
         if _DEBUG:
             print(f'DEBUG: ev_dict = {ev_dict}')
@@ -199,6 +200,76 @@ def get_host_resources(hostname):
             print('')
 
     return host_resources
+
+
+def convert_to_slurm_node_conf(host_resources):
+    # Input: dict - key = hostname, val = dict of resources
+    # Output: slurm.conf node config line
+    #  E.g. 
+    #     NodeName=2118ffn001       Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=773000 TmpDisk=3661000 Gres=gpu:A40:2
+    retval = None
+
+    features = ('avx', 'avx2', 'sgx')
+    gpu_types = ('a40', 'a100', 'p100', 'v100')
+
+    # we can't guarantee the gpu_type appears before no. of gpus
+    # so, first pass, we redefine
+    host_gputype_dict = {}
+    for hostname, resources in host_resources.items():
+        gputype_maybe = set(resources.keys()).intersection(gpu_types)
+        if gputype_maybe:
+            # there should be only one
+            gputype = gputype_maybe.pop()
+            host_gputype_dict[hostname] = gputype
+
+    nodelines = []
+    for hostname, resources in host_resources.items():
+        node_def_str = ''
+
+        nodename = hostname.split('.')[0]
+
+        node_def_str += f'NodeName={nodename} '
+        node_def_str += f'Sockets={resources["m_socket"]} '
+
+        cores_per_socket = int(resources['m_core'] / resources['m_socket'])
+        node_def_str += f'CoresPerSocket={cores_per_socket} '
+
+        threads_per_core = int(resources['m_thread'] / resources['m_core'])
+        node_def_str += f'ThreadsPerCore={threads_per_core} '
+
+        # mem - in MiB; reduce by 3 GiB for system
+        real_mem = int(resources['mem_total']) - (3 * 1024)
+        node_def_str += f'RealMemory={real_mem} '
+
+        # tmp disk space - in MiB; reduce by 8 GiB
+        tmp_disk = int(resources['tmptot'] - (8 * 1024))
+        node_def_str += f'TmpDisk={tmp_disk} '
+
+        features_list = []
+        gres = ''
+        for resname, resval in resources.items():
+            if (resname in features) and resval:
+                features_list.append(resname)
+
+        features_str = None
+        if features_list:
+            features_str = 'Features=' + ','.join(features_list)
+            node_def_str += f'{features_str} '
+
+        gpu_str = None
+        if 'gpu' in resources.keys():
+            gpu_str = f'Gres=gpu:{host_gputype_dict[hostname]}:{resources["gpu"]}'
+            node_def_str += f'{gpu_str} '
+
+        if _DEBUG:
+            print(f'DEBUG: node_def_str = {node_def_str}')
+            print()
+
+        nodelines.append(node_def_str)
+        node_def_str = None
+
+    return nodelines
+
 
 
 def main():
@@ -214,6 +285,10 @@ def main():
     for host, resources in host_resources.items():
         print(f'host = {host};  resources = {resources}')
 
+    nodelines = convert_to_slurm_node_conf(host_resources)
+
+    for n in nodelines:
+        print(n)
 
 
 if __name__ == '__main__':

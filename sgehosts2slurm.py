@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import re
+import argparse
 
 _DEBUG = False
 _QCONF = '/cbica/software/external/sge/8.1.9-1/bin/lx-amd64/qconf'
@@ -273,6 +274,12 @@ def convert_to_slurm_node_conf(host_resources):
 
 
 def main():
+    parser = argparse.ArgumentParser('Convert CUBIC SGE host records to Slurm')
+    parser.add_argument('-d', '--debug', action='store_true', help='Debugging output')
+    args = parser.parse_args()
+
+    _DEBUG = args.debug
+
     allhosts = get_hosts()
 
     if _DEBUG:
@@ -294,3 +301,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

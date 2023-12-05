@@ -45,10 +45,11 @@ def get_hosts():
     #   cubic-login5.bicic.local
     #   cubic-sattertt1.bicic.local
     login_node_pat = re.compile(r'^cubic-login')
+    fed_node_pat = re.compile(r'^compute-fed')
 
     to_remove = ['cubic-sattertt1.bicic.local']
     for h in allhosts:
-        if login_node_pat.match(h):
+        if login_node_pat.match(h) or fed_node_pat.match(h):
             to_remove.append(h)
 
     for r in to_remove:

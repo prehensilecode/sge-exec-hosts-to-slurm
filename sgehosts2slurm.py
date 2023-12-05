@@ -171,7 +171,8 @@ def get_host_resources(hostname):
             if _DEBUG:
                 print(f'DEBUG: key = {key}, val = {val}')
 
-            # slurm stuff is all case-insensitive and always reported lowercase
+            # GPU types are case-sensitive; but we handle that when we generate
+            # the slurm.conf line
             if key in res_of_interest:
                 bool_vals = ('A40', 'A100', 'P100', 'V100', 'avx', 'avx2', 'SGX')
                 if key in bool_vals:
@@ -250,6 +251,8 @@ def convert_to_slurm_node_conf(host_resources):
         gres = ''
         for resname, resval in resources.items():
             if (resname in features) and resval:
+                if resname.lower() == 'sgx':
+                    resname = resname.upper()
                 features_list.append(resname)
 
         features_str = None
@@ -259,7 +262,7 @@ def convert_to_slurm_node_conf(host_resources):
 
         gpu_str = None
         if 'gpu' in resources.keys():
-            gpu_str = f'Gres=gpu:{host_gputype_dict[hostname]}:{resources["gpu"]}'
+            gpu_str = f'Gres=gpu:{host_gputype_dict[hostname].upper()}:{resources["gpu"]}'
             node_def_str += f'{gpu_str} '
 
         if _DEBUG:

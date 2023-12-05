@@ -252,8 +252,6 @@ def convert_to_slurm_node_conf(host_resources):
         gres = ''
         for resname, resval in resources.items():
             if (resname in features) and resval:
-                if resname.lower() == 'sgx':
-                    resname = resname.upper()
                 features_list.append(resname)
 
         features_str = None
@@ -263,7 +261,7 @@ def convert_to_slurm_node_conf(host_resources):
 
         gpu_str = None
         if 'gpu' in resources.keys():
-            gpu_str = f'Gres=gpu:{host_gputype_dict[hostname].upper()}:{resources["gpu"]}'
+            gpu_str = f'Gres=gpu:{host_gputype_dict[hostname]}:{resources["gpu"]}'
             node_def_str += f'{gpu_str} '
 
         if _DEBUG:

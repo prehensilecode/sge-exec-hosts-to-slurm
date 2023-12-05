@@ -191,6 +191,8 @@ def get_host_resources(hostname):
                 if key in mem_vals:
                     val = to_MiB(val)
 
+                # SchedMD recommends lower case for everything
+                # https://bugs.schedmd.com/show_bug.cgi?id=15897#c12
                 if val:
                     ev_dict[key.lower()] = val
 
